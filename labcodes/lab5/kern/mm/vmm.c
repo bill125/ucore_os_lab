@@ -480,25 +480,20 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
 		  2) *ptep & PTE_P == 0 & but *ptep!=0, it means this pte is a  swap entry.
 		     We should add the LAB3's results here.
      */
-        if(swap_init_ok) {
+        if (swap_init_ok) {
             struct Page *page=NULL;
-            if (swap_in(mm, addr, &page) == 0) {
-                if (page_insert(mm->pgdir, page, addr, perm) == 0) {
-                    assert(swap_map_swappable(mm, addr, page, 1) == 0);
-                    page->pra_vaddr = addr;
-                }
-                else {
-                    free_page(page);
-                    goto failed;
-                }
-            }
-            else {
+            //(1)According to the mm AND addr, try to load the content of right disk page
+            //    into the memory which page managed.
+            if (swap_in(mm, addr, &page) != 0) {
                 goto failed;
-            }  
-                                    //(1）According to the mm AND addr, try to load the content of right disk page
-                                    //    into the memory which page managed.
-                                    //(2) According to the mm, addr AND page, setup the map of phy addr <---> logical addr
-                                    //(3) make the page swappable.
+            }
+            //(2) According to the mm, addr AND page, setup the map of phy addr <---> logical addr
+            if (page_insert(mm->pgdir, page, addr, perm) != 0) {
+                free_page(page);
+                goto failed;
+            }
+            assert(swap_map_swappable(mm, addr, page, 1) == 0); //(3) make the page swappable.
+            page->pra_vaddr = addr;
                                     //(4) [NOTICE]: you myabe need to update your lab3's implementation for LAB5's normal execution.
         }
         else {

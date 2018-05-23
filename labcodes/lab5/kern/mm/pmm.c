@@ -433,12 +433,12 @@ page_remove_pte(pde_t *pgdir, uintptr_t la, pte_t *ptep) {
      *   PTE_P           0x001                   // page table/directory entry flags bit : Present
      */
     if (*ptep & PTE_P) {                      //(1) check if this page table entry is present
-            struct Page *page = pte2page(*ptep);  //(2) find corresponding page to pte
-            if (page_ref_dec(page) == 0) {        //(3) decrease page reference
-                free_page(page);                  //(4) and free this page when page reference reachs 0
-            }
-            *ptep = 0;                            //(5) clear second page table entry
-            tlb_invalidate(pgdir, la);            //(6) flush tlb
+        struct Page *page = pte2page(*ptep);  //(2) find corresponding page to pte
+        if (page_ref_dec(page) == 0) {        //(3) decrease page reference
+            free_page(page);                  //(4) and free this page when page reference reachs 0
+        }
+        *ptep = 0;                            //(5) clear second page table entry
+        tlb_invalidate(pgdir, la);            //(6) flush tlb
     }
 }
 
@@ -507,7 +507,7 @@ copy_range(pde_t *to, pde_t *from, uintptr_t start, uintptr_t end, bool share) {
         assert(page!=NULL);
         assert(npage!=NULL);
         int ret=0;
-        /* LAB5:EXERCISE2 YOUR CODE
+        /* LAB5:EXERCISE2 2015011276
          * replicate content of page to npage, build the map of phy addr of nage with the linear addr start
          *
          * Some Useful MACROs and DEFINEs, you can use them in below implementation.
@@ -521,7 +521,11 @@ copy_range(pde_t *to, pde_t *from, uintptr_t start, uintptr_t end, bool share) {
          * (3) memory copy from src_kvaddr to dst_kvaddr, size is PGSIZE
          * (4) build the map of phy addr of  nage with the linear addr start
          */
-        assert(ret == 0);
+            const void *src_kvaddr = page2kva(page);
+            void *dst_kvaddr = page2kva(npage);
+            memcpy(dst_kvaddr, src_kvaddr, PGSIZE);
+            ret = page_insert(to, npage, start, perm);
+            assert(ret == 0);
         }
         start += PGSIZE;
     } while (start != 0 && start < end);

@@ -53,17 +53,24 @@ idt_init(void) {
       *     You don't know the meaning of this instruction? just google it! and check the libs/x86.h to know more.
       *     Notice: the argument of lidt is idt_pd. try to find it!
       */
-     /* LAB5 YOUR CODE */ 
+     /* LAB5 2015011276  ? */ 
      //you should update your lab1 code (just add ONE or TWO lines of code), let user app to use syscall to get the service of ucore
      //so you should setup the syscall interrupt gate in here
-    extern uintptr_t __vectors[];
-    for (int i = 0; i < sizeof(idt) / sizeof(struct gatedesc); ++ i) {
-        SETGATE(idt[i], 0, GD_KTEXT, __vectors[i], DPL_KERNEL);
-    }
-
-    SETGATE(idt[T_SWITCH_TOK], 0, GD_KTEXT, __vectors[T_SWITCH_TOK], DPL_USER);
-
-    lidt(&idt_pd);
+      extern uintptr_t __vectors[];
+      for (int i = 0; i < 256; ++i) {
+          int dpl = DPL_KERNEL;
+          if (i == T_SYSCALL || i == T_SWITCH_TOK) {
+              dpl = DPL_USER;
+          }
+          int istrap = 0;
+          if (i == T_SYSCALL) {
+              istrap = 1;
+          }
+          SETGATE(idt[i], istrap, KERNEL_CS, __vectors[i], dpl);
+      }
+      asm volatile ("lidt %0"
+                    :
+                    : "m"(idt_pd));
 }
 
 static const char *
@@ -103,6 +110,7 @@ trapname(int trapno) {
 /* trap_in_kernel - test if trap happened in kernel */
 bool
 trap_in_kernel(struct trapframe *tf) {
+    cprintf("tf->tf_cs = %d\n", tf->tf_cs);
     return (tf->tf_cs == (uint16_t)KERNEL_CS);
 }
 
@@ -190,7 +198,6 @@ pgfault_handler(struct trapframe *tf) {
 static volatile int in_swap_tick_event = 0;
 extern struct mm_struct *check_mm_struct;
 
-int trap_cnt;
 static void
 trap_dispatch(struct trapframe *tf) {
     char c;
@@ -228,14 +235,13 @@ trap_dispatch(struct trapframe *tf) {
          * (2) Every TICK_NUM cycle, you can print some info using a funciton, such as print_ticks().
          * (3) Too Simple? Yes, I think so!
          */
-        /* LAB5 YOUR CODE */
+        /* LAB5 2015011276 */
         /* you should upate you lab1 code (just add ONE or TWO lines of code):
          *    Every TICK_NUM cycle, you should set current process's current->need_resched = 1
          */
-        
-        if (++ trap_cnt == TICK_NUM) {
-            trap_cnt = 0;
-            print_ticks();
+        ++ ticks;
+        if (ticks % TICK_NUM == 0) {
+            current->need_resched = 1;
         }
         break;
     case IRQ_OFFSET + IRQ_COM1:
