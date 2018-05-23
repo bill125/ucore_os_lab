@@ -370,7 +370,6 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     ptep = get_pte(mm->pgdir, addr, 1);              //(1) try to find a pte, if pte's PT(Page Table) isn't existed, then create a PT.
     if (!ptep) goto failed;
     if (*ptep == 0) {
-        // pgdir_alloc_page(pde_t *pgdir, uintptr_t la, uint32_t perm) 
         struct Page * page = pgdir_alloc_page(mm->pgdir, addr, perm);                    //(2) if the phy addr isn't exist, then alloc a page & map the phy addr with logical addr
         if (!page) goto failed;
         memset(addr, 0, PGSIZE);
@@ -389,6 +388,19 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     */
         if(swap_init_ok) {
             struct Page *page=NULL;
+            if (swap_in(mm, addr, &page) == 0) {
+                if (page_insert(mm->pgdir, page, addr, perm) == 0) {
+                    assert(swap_map_swappable(mm, addr, page, 1) == 0);
+                    page->pra_vaddr = addr;
+                }
+                else {
+                    free_page(page);
+                    goto failed;
+                }
+            }
+            else {
+                goto failed;
+            }
                                     //(1）According to the mm AND addr, try to load the content of right disk page
                                     //    into the memory which page managed.
                                     //(2) According to the mm, addr AND page, setup the map of phy addr <---> logical addr
