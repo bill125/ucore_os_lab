@@ -476,6 +476,9 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
     if ((ret = setup_kstack(proc)) != 0) {
         goto bad_fork_cleanup_proc;
     }
+    if ((ret = copy_files(clone_flags, proc)) != 0) {
+        goto bad_fork_cleanup_kstack;
+    }
     if ((ret = copy_mm(clone_flags, proc)) != 0) {
         goto bad_fork_cleanup_kstack;
     }
@@ -578,7 +581,7 @@ load_icode_read(int fd, void *buf, size_t len, off_t offset) {
   
 static int
 load_icode(int fd, int argc, char **kargv) {
-    /* LAB8:EXERCISE2 YOUR CODE  HINT:how to load the file with handler fd  in to process's memory? how to setup argc/argv?
+    /* LAB8:EXERCISE2 2015011276  HINT:how to load the file with handler fd  in to process's memory? how to setup argc/argv?
      * MACROs or Functions:
      *  mm_create        - create a mm
      *  setup_pgdir      - setup pgdir in mm
@@ -601,10 +604,6 @@ load_icode(int fd, int argc, char **kargv) {
     //  * (6) setup uargc and uargv in user stacks
     //  * (7) setup trapframe for user environment
     //  * (8) if up steps failed, you should cleanup the env.
- if (current->mm != NULL) {
-        panic("load_icode: current->mm must be empty.\n");
-    }
-
     int ret = -E_NO_MEM;
     struct mm_struct *mm;
     if ((mm = mm_create()) == NULL) {
